@@ -1,0 +1,63 @@
+{
+  "attempts": 609,
+  "unique_rows": 200,
+  "files": {
+    "train": "e:\\X语音\\dataset\\xc_asm_train.jsonl",
+    "val": "e:\\X语音\\dataset\\xc_asm_val.jsonl",
+    "test": "e:\\X语音\\dataset\\xc_asm_test.jsonl"
+  },
+  "stats": {
+    "train": {
+      "count": 180,
+      "difficulty": {
+        "easy": 109,
+        "medium": 65,
+        "hard": 6
+      },
+      "tags": {
+        "if": 92,
+        "string_lib": 1,
+        "compare": 44,
+        "pointer": 8,
+        "malloc": 8,
+        "arith": 46,
+        "func_call": 12,
+        "for": 7,
+        "switch": 4,
+        "union": 1,
+        "bitfield": 1,
+        "fnptr_typedef": 1,
+        "while": 8,
+        "file_io": 1
+      },
+      "unsupported": 6
+    },
+    "val": {
+      "count": 10,
+      "difficulty": {
+        "easy": 8,
+        "medium": 2
+      },
+      "tags": {
+        "if": 7,
+        "compare": 2,
+        "arith": 3
+      },
+      "unsupported": 0
+    },
+    "test": {
+      "count": 10,
+      "difficulty": {
+        "medium": 4,
+        "easy": 6
+      },
+      "tags": {
+        "if": 5,
+        "compare": 4,
+        "arith": 4,
+        "for": 1
+      },
+      "unsupported": 0
+    }
+  }
+}
