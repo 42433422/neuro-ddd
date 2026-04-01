@@ -22,7 +22,7 @@ if str(ROOT) not in sys.path:
 
 DATA_TRAIN = ROOT / "dataset" / "xc_asm_train.jsonl"
 DATA_VAL = ROOT / "dataset" / "xc_asm_val.jsonl"
-MODEL_OUT = ROOT / "models" / "xc-asm-mamba" / "final"
+MODEL_OUT = ROOT / "models" / "JNCC" / "final"
 
 
 def run(cmd: list[str]) -> int:
@@ -125,7 +125,7 @@ def main() -> int:
 
     p1 = sub.add_parser("train", help="Mamba 监督微调")
     p1.add_argument("--model", choices=["mamba-130m", "mamba-370m"], default="mamba-130m")
-    p1.add_argument("--out_name", type=str, default="xc-asm-mamba")
+    p1.add_argument("--out_name", type=str, default="JNCC")
     p1.add_argument("--epochs", type=int, default=2)
     p1.add_argument("--batch_size", type=int, default=2)
     p1.add_argument("--lr", type=float, default=2e-4)
