@@ -44,10 +44,6 @@ models/
 *.pth
 *.safetensors
 
-# Dataset (太大，不上传)
-dataset/*.jsonl
-!dataset/*.md
-
 # OS
 .DS_Store
 Thumbs.db

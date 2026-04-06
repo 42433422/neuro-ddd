@@ -294,15 +294,14 @@ from neuro_ddd import NeuroUnitOfWork, InMemoryRepository, DomainEvent, Aggregat
 
 ---
 
-## 🧪 测试
+## 🧪 测试与基准
 
 ```bash
-# 异步框架冒烟（若仓库根目录存在对应测试文件）
-pytest test_neuro_software.py -v
-
 # 可复现性能对比（生成 reports/neuro_ddd_benchmark.json）
 python tools/benchmark_neuro_ddd_performance.py
 ```
+
+可在本仓库根目录将 `neuro_ddd`、`neuro_ddd_software` 加入 `PYTHONPATH` 后编写自有 `pytest` 用例。
 
 ---
 

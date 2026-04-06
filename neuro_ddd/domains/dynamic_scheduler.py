@@ -33,14 +33,17 @@ class DynamicSchedulerDomain(NeuralDomain):
             is_fallback = decision == SchedulingDecision.GCC_FALLBACK
         dispatch_result = self._create_dispatch_payload(decision)
         if is_fallback:
-            try:
-                from traditional_c.compiler import TraditionalCCompiler
-                compiler = TraditionalCCompiler()
-                dispatch_result["fallback_compiler"] = "TraditionalCCompiler"
-                dispatch_result["fallback_status"] = "invoked"
-            except ImportError:
-                dispatch_result["fallback_compiler"] = "TraditionalCCompiler"
-                dispatch_result["fallback_status"] = "import_failed"
+            fb = (
+                getattr(self.decision_engine, "fallback_compiler", None)
+                if self.decision_engine
+                else None
+            )
+            dispatch_result["fallback_status"] = (
+                "engine_configured" if fb is not None else "not_configured"
+            )
+            dispatch_result["fallback_compiler"] = (
+                type(fb).__name__ if fb is not None else None
+            )
         new_signal = Signal(
             signal_type=SignalType.DISPATCH,
             payload=dispatch_result,
