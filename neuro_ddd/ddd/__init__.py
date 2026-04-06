@@ -1,4 +1,11 @@
 from .aggregate import AggregateRoot, Entity, ValueObject, ensure
+from .es_aggregate import EventSourcedAggregateRoot
+from .event_sourcing import (
+    ConcurrencyError,
+    EventStore,
+    InMemoryEventStore,
+    StoredEvent,
+)
 from .application import (
     CommitResult,
     CommandHandler,
@@ -47,4 +54,9 @@ __all__ = [
     "OutboxRecord",
     "OutboxDispatcher",
     "OutboxFlushResult",
+    "EventSourcedAggregateRoot",
+    "EventStore",
+    "InMemoryEventStore",
+    "StoredEvent",
+    "ConcurrencyError",
 ]

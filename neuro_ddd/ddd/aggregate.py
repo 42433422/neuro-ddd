@@ -33,6 +33,10 @@ class AggregateRoot(ABC):
         self._pending_events = []
         return out
 
+    def mark_committed(self, new_version: int) -> None:
+        """After successful persistence (e.g. event store append), set stream/snapshot version."""
+        self._version = new_version
+
 
 class Entity(ABC):
     def __init__(self, entity_id: str) -> None:
@@ -52,7 +56,7 @@ class Entity(ABC):
 
 
 class ValueObject(ABC):
-    """Immutable value; subclasses should use frozen dataclasses."""
+    """Immutable value: prefer ``@dataclass(frozen=True, slots=True)`` + field validators."""
 
     def __eq__(self, other: object) -> bool:
         raise NotImplementedError

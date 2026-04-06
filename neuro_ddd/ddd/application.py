@@ -9,6 +9,7 @@ from neuro_ddd.core.types import DomainType
 
 from .aggregate import AggregateRoot
 from .context import signal_from_integration_event
+from .event_sourcing import EventStore
 from .events import DomainEvent
 from .outbox import OutboxStore
 from .repository import Repository
@@ -24,6 +25,7 @@ OutboundMap = Callable[[DomainEvent], Optional[DomainEvent]]
 class CommitResult:
     published_event_names: List[str]
     outbox_record_ids: List[str]
+    event_store_lengths: List[int]
 
 
 class UnitOfWork(ABC):
@@ -44,11 +46,13 @@ class NeuroUnitOfWork(UnitOfWork):
         source_domain: Optional[DomainType] = None,
         map_outbound: Optional[OutboundMap] = None,
         outbox: Optional[OutboxStore] = None,
+        event_store: Optional[EventStore] = None,
     ) -> None:
         self._bus = bus
         self._source_domain = source_domain
         self._map_outbound = map_outbound
         self._outbox = outbox
+        self._event_store = event_store
         self._repos: Dict[type, Repository] = {}
         self._dirty: List[AggregateRoot] = []
 
@@ -68,9 +72,16 @@ class NeuroUnitOfWork(UnitOfWork):
     def commit(self) -> CommitResult:
         names: List[str] = []
         outbox_ids: List[str] = []
+        stream_lens: List[int] = []
         for agg in list(self._dirty):
-            self._save_aggregate(agg)
             events = agg.pull_domain_events()
+            if self._event_store is not None and events:
+                exp = self._event_store.stream_version(agg.id)
+                agg_type = type(agg).__name__
+                new_len = self._event_store.append(agg.id, agg_type, exp, events)
+                agg.mark_committed(new_len)
+                stream_lens.append(new_len)
+            self._save_aggregate(agg)
             for evt in events:
                 mapped: Optional[DomainEvent] = evt
                 if self._map_outbound is not None:
@@ -89,7 +100,9 @@ class NeuroUnitOfWork(UnitOfWork):
                 names.append(mapped.name)
         self._dirty.clear()
         return CommitResult(
-            published_event_names=names, outbox_record_ids=outbox_ids
+            published_event_names=names,
+            outbox_record_ids=outbox_ids,
+            event_store_lengths=stream_lens,
         )
 
 
