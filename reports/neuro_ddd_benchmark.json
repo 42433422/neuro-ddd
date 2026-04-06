@@ -1,0 +1,111 @@
+{
+  "generated_at_unix": 1775451704.7449052,
+  "wall_clock_total_s": 3.543,
+  "python": "3.11.8",
+  "parameters": {
+    "parallel_iterations_micro": 60,
+    "parallel_iterations_heavy_io": 40,
+    "crud_iterations": 500,
+    "delay_ms_micro": 2.0,
+    "delay_ms_heavy": 12.0,
+    "handler_or_domain_count": 3
+  },
+  "scenarios": {
+    "parallel_micro_io": {
+      "delay_ms_per_handler": 2.0,
+      "iterations": 60,
+      "traditional_sequential_sync": {
+        "name": "traditional_sequential_sync",
+        "iterations": 60,
+        "avg_ms": 6.928249999934148,
+        "median_ms": 6.953150000299502,
+        "min_ms": 6.170299999212148,
+        "max_ms": 8.146600001055049,
+        "throughput_ops_s": 144.33659293609568,
+        "notes": "3 handlers, sleep(2.0ms) each, same thread"
+      },
+      "async_neuro_bus_parallel": {
+        "name": "async_neuro_bus_parallel",
+        "iterations": 60,
+        "avg_ms": 15.52647500002422,
+        "median_ms": 15.582400000312191,
+        "min_ms": 8.386699999391567,
+        "max_ms": 16.780699999799253,
+        "throughput_ops_s": 64.40611922528713,
+        "notes": "3 domains, asyncio.gather in broadcast, sleep(2.0ms) each"
+      },
+      "sequential_median_ms_over_parallel_median_ms": 0.4462
+    },
+    "parallel_heavy_io": {
+      "delay_ms_per_handler": 12.0,
+      "iterations": 40,
+      "traditional_sequential_sync": {
+        "name": "traditional_sequential_sync",
+        "iterations": 40,
+        "avg_ms": 37.24722500023745,
+        "median_ms": 37.231050000627874,
+        "min_ms": 36.58920000088983,
+        "max_ms": 38.08700000081444,
+        "throughput_ops_s": 26.84763764263311,
+        "notes": "3 handlers, sleep(12.0ms) each, same thread"
+      },
+      "async_neuro_bus_parallel": {
+        "name": "async_neuro_bus_parallel",
+        "iterations": 40,
+        "avg_ms": 15.751165000119727,
+        "median_ms": 15.52940000055969,
+        "min_ms": 14.387100000021746,
+        "max_ms": 25.46299999994517,
+        "throughput_ops_s": 63.48736744186216,
+        "notes": "3 domains, asyncio.gather in broadcast, sleep(12.0ms) each"
+      },
+      "sequential_median_ms_over_parallel_median_ms": 2.3975
+    },
+    "parallel_interpretation": "With tiny per-handler delays, asyncio framework cost can dominate; with larger I/O-like delays, wall-clock approaches max(delay) instead of sum(delay).",
+    "crud": {
+      "traditional": {
+        "name": "traditional_crud_sync",
+        "iterations": 500,
+        "avg_ms": 0.0005351999243430328,
+        "median_ms": 0.0004000012268079445,
+        "min_ms": 0.0002999986463692039,
+        "max_ms": 0.006300000677583739,
+        "throughput_ops_s": 1868460.6527691823,
+        "notes": "direct service + repo"
+      },
+      "neuro_domain_path": {
+        "name": "neuro_software_domain_on_receive_only",
+        "iterations": 500,
+        "avg_ms": 0.02134640004078392,
+        "median_ms": 0.02049999966402538,
+        "min_ms": 0.008499999239575118,
+        "max_ms": 0.24760000087553635,
+        "throughput_ops_s": 46846.3065476813,
+        "notes": "SoftwareDomain.on_receive x2 per iter, no bus.broadcast"
+      }
+    },
+    "sync_neuro_ddd_bus": {
+      "bus": {
+        "name": "neuro_ddd_sync_bus_3_domains",
+        "iterations": 2500,
+        "avg_ms": 0.004587320001883199,
+        "median_ms": 0.00399999953515362,
+        "min_ms": 0.0035999983083456755,
+        "max_ms": 0.393899999835412,
+        "throughput_ops_s": 217992.2045092728,
+        "notes": "NeuroBus.broadcast to 3x on_receive | overhead_vs_direct_loop=3.43x avg latency"
+      },
+      "direct_loop": {
+        "name": "neuro_ddd_direct_loop_3_domains",
+        "iterations": 2500,
+        "avg_ms": 0.0013389599982474465,
+        "median_ms": 0.0013000008038943633,
+        "min_ms": 0.0011000010999850929,
+        "max_ms": 0.05059999966761097,
+        "throughput_ops_s": 746848.3011508123,
+        "notes": "for-loop on_receive x3"
+      },
+      "avg_latency_ratio_bus_over_direct": 3.426
+    }
+  }
+}

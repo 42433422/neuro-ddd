@@ -144,53 +144,56 @@ pip install -e .
 
 ## 🔧 快速开始
 
-### 示例：电商订单系统
+### 示例：电商订单系统（异步总线 + 订阅）
 
 ```python
 import asyncio
-from neuro_ddd_software import (
-    AsyncNeuroBus, NeuroSignal, SoftwareDomain,
-    ProcessingMode, ProcessingResult
-)
+from neuro_ddd_software import AsyncNeuroBus, NeuroSignal, ProcessingResult, SoftwareDomain
 
-# 1. 定义领域
 class OrderDomain(SoftwareDomain):
-    async def handle_signal(self, signal: NeuroSignal) -> ProcessingResult:
+    def __init__(self) -> None:
+        super().__init__("order")
+
+    async def async_process_signal(self, signal, context):
         if signal.signal_type == "order.created":
             print(f"处理订单：{signal.payload}")
-            return ProcessingResult.success()
-        return ProcessingResult.skip()
+            return ProcessingResult(success=True)
+        return ProcessingResult(success=True, result_data=None, metadata={"skipped": True})
 
 class InventoryDomain(SoftwareDomain):
-    async def handle_signal(self, signal: NeuroSignal) -> ProcessingResult:
+    def __init__(self) -> None:
+        super().__init__("inventory")
+
+    async def async_process_signal(self, signal, context):
         if signal.signal_type == "order.created":
             print(f"扣减库存：{signal.payload}")
-            return ProcessingResult.success()
-        return ProcessingResult.skip()
+            return ProcessingResult(success=True)
+        return ProcessingResult(success=True, result_data=None, metadata={"skipped": True})
 
 class PaymentDomain(SoftwareDomain):
-    async def handle_signal(self, signal: NeuroSignal) -> ProcessingResult:
+    def __init__(self) -> None:
+        super().__init__("payment")
+
+    async def async_process_signal(self, signal, context):
         if signal.signal_type == "order.created":
             print(f"处理支付：{signal.payload}")
-            return ProcessingResult.success()
-        return ProcessingResult.skip()
+            return ProcessingResult(success=True)
+        return ProcessingResult(success=True, result_data=None, metadata={"skipped": True})
 
-# 2. 创建总线并注册领域
 async def main():
     async with AsyncNeuroBus() as bus:
-        bus.register("order", OrderDomain("order"))
-        bus.register("inventory", InventoryDomain("inventory"))
-        bus.register("payment", PaymentDomain("payment"))
-        
-        # 3. 广播订单创建信号
-        signal = NeuroSignal.create_request(
+        domains = [OrderDomain(), InventoryDomain(), PaymentDomain()]
+        for d in domains:
+            await d.set_bus(bus)
+            bus.subscribe(d.domain_name, ["order.created"], d.on_receive)
+
+        signal = NeuroSignal(
             signal_type="order.created",
-            payload={"order_id": "12345", "amount": 99.99}
+            source_domain="api",
+            target_domains=[d.domain_name for d in domains],
+            payload={"order_id": "12345", "amount": 99.99},
         )
-        
-        # 4. 所有领域同时处理
         results = await bus.broadcast(signal, wait_for_results=True)
-        
         print(f"处理完成：{len(results)} 个领域响应")
 
 asyncio.run(main())
@@ -206,30 +209,44 @@ asyncio.run(main())
 
 ---
 
-## 📊 性能对比
+## 📊 性能对比（可复现）
 
-### 场景 1：简单 CRUD 操作
+在仓库根目录执行：
 
-| 框架 | 延迟 | 说明 |
-|------|------|------|
-| 传统 DDD | 0.001ms | 直接方法调用 |
-| Neuro-DDD | 0.006ms | 信号广播（+0.005ms 开销） |
+```bash
+python tools/benchmark_neuro_ddd_performance.py
+```
 
-### 场景 2：多领域协同（3 个领域）
+完整原始数据写入 [`reports/neuro_ddd_benchmark.json`](reports/neuro_ddd_benchmark.json)（随 CI / 本机重跑更新）。以下为一次 **Windows / Python 3.11** 样例摘要（**非保证值**，以你机器上 JSON 为准）。
 
-| 框架 | 延迟 | 说明 |
-|------|------|------|
-| 传统 DDD | 16.113ms | 顺序调用 |
-| Neuro-DDD | 0.002ms | 并行广播 |
-| **加速比** | **8305x** | ⚡️ |
+### 并行 vs 串行（3 个 handler / 领域，各带同等 `asyncio.sleep` 或 `time.sleep`）
 
-### 场景 3：双模式处理
+| 场景 | 传统（同线程顺序 sleep） | AsyncNeuroBus 并行 `gather` | 说明 |
+|------|--------------------------|----------------------------|------|
+| 微延迟（每 handler ~2ms） | ~6.95 ms（中位数） | ~15.6 ms（中位数） | 延迟极短时，async 框架与调度开销可能超过收益 |
+| I/O 型延迟（每 handler ~12ms） | ~37.2 ms（中位数） | ~15.5 ms（中位数） | 墙钟接近「单次 sleep」而非三次之和，约 **2.4×** 于并行侧更优 |
 
-| 模式 | 延迟 | 准确率 |
-|------|------|--------|
-| 潜意识 | 8ms | 92% |
-| 显意识 | 120ms | 99.8% |
-| 双模式（FAST_FIRST） | 12ms | 98.5% |
+**结论**：加速比取决于「单次领域耗时」与领域数量；应用层应把 Neuro-DDD 用于 **I/O 边界 / 多领域协同**，勿与「纳秒级纯计算」对标。
+
+### 简单 CRUD（500 次迭代样例）
+
+| 路径 | 中位数延迟（单次 set+get） |
+|------|---------------------------|
+| 传统 Service + Repository | ~0.0004 ms |
+| `SoftwareDomain.on_receive` ×2（不经总线广播） | ~0.020 ms |
+
+### 同步内核 `neuro_ddd.NeuroBus`（2500 次广播样例）
+
+| 方式 | 中位数 |
+|------|--------|
+| 手写 `for` 调 `on_receive` ×3 | ~0.0013 ms |
+| `NeuroBus.broadcast` → 3 领域 | ~0.0040 ms |
+
+总线含线程安全、路由与日志等，约为手写循环的 **数倍级微秒开销**（量级仍极低）。
+
+### 双模式处理（示意）
+
+双模式延迟与「准确率」依赖具体模型与负载，未在基准脚本中硬编码；请参考 `DualModeEngine` 与业务评测。
 
 ---
 
@@ -260,29 +277,31 @@ asyncio.run(main())
 
 ---
 
+## 🔩 同步内核 `neuro_ddd`（工业向）
+
+本仓库包含 **`neuro_ddd`** Python 包：同步总线、主题订阅、显式目标路由、`DomainEvent` / 聚合 / 仓储、`NeuroUnitOfWork`、**Outbox**、投递隔离策略（`DeliveryErrorPolicy`）等，可与 `neuro_ddd_software` 异步层组合使用。
+
+```python
+from neuro_ddd import NeuroBus, Signal, DomainType, DeliveryErrorPolicy
+from neuro_ddd import NeuroUnitOfWork, InMemoryRepository, DomainEvent, AggregateRoot
+```
+
+---
+
 ## 📚 文档
 
-- [📖 完整软件框架文档](neuro_ddd_software/SOFTWARE_FRAMEWORK.md) - 900+ 行详细技术文档
-- [🧠 架构设计说明](.trae/specs/neuro-ddd-architecture/spec.md)
-- [📝 实现任务列表](.trae/specs/neuro-ddd-architecture/tasks.md)
+- [完整软件框架文档](neuro_ddd_software/SOFTWARE_FRAMEWORK.md)（异步层）
 
 ---
 
 ## 🧪 测试
 
 ```bash
-# 运行功能测试
+# 异步框架冒烟（若仓库根目录存在对应测试文件）
 pytest test_neuro_software.py -v
 
-# 运行性能基准测试
-python benchmark_simple.py
-```
-
-### 测试结果
-
-```
-✅ 功能测试：8/8 通过 (100%)
-✅ 性能测试：并行场景 8305x 加速
+# 可复现性能对比（生成 reports/neuro_ddd_benchmark.json）
+python tools/benchmark_neuro_ddd_performance.py
 ```
 
 ---
