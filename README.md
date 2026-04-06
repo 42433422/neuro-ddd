@@ -128,16 +128,13 @@ await reflex.trigger("emergency.stop", payload)
 
 ## 📦 安装
 
-```bash
-pip install neuro-ddd
-```
-
-或者从源码安装：
+本仓库为**框架源码**；将克隆目录加入 `PYTHONPATH` 或按需 `pip install -e .`（若根目录提供 `pyproject.toml` / `setup.cfg`）。
 
 ```bash
 git clone https://github.com/42433422/neuro-ddd.git
 cd neuro-ddd
-pip install -e .
+export PYTHONPATH="$PWD:$PYTHONPATH"   # Linux/macOS
+# set PYTHONPATH=%CD%;%PYTHONPATH%     # Windows cmd
 ```
 
 ---
